@@ -1,54 +1,49 @@
-import React, { useState } from "react";
+import { ipcRenderer } from "electron";
+import React, { useEffect, useState } from "react";
 import { Alert, Container, Table } from "react-bootstrap";
+import { v4 as uuid } from "uuid";
+
 import AddLogItem from "./AddLogItem";
 import LogItem from "./LogItem";
 
 const App = () => {
+  const [logs, setLogs] = useState([]);
   const [alert, setAlert] = useState({
     show: false,
     msg: "",
     variant: "success",
   });
-  const [logs, setLogs] = useState([
-    {
-      id: 1,
-      text: "test1",
-      priority: "low",
-      user: "user",
-      createdAt: new Date().toUTCString(),
-    },
-    {
-      id: 2,
-      text: "test2",
-      priority: "high",
-      user: "user",
-      createdAt: new Date().toUTCString(),
-    },
-    {
-      id: 3,
-      text: "test3",
-      priority: "moderate",
-      user: "user",
-      createdAt: new Date().toUTCString(),
-    },
-  ]);
+
+  useEffect(() => {
+    ipcRenderer.send("logs:load");
+    ipcRenderer.on("logs:get", (e, logs) => {
+      console.log("LOGS::: ", logs);
+      setLogs(JSON.parse(logs));
+    });
+    ipcRenderer.on("logs:clear", () => {
+      setLogs([]);
+      showAlert("Logs Cleared!");
+    });
+  }, []);
 
   const addItem = (item) => {
-    console.log("addItem:ITEM::: ", item);
+    console.log("addItem:ITEM::: ", { id: uuid(), ...item });
 
     if (item.text === "" || item.user === "") {
       showAlert("Please enter all fields", "danger", 6000);
       return;
     }
 
-    item.id = Math.floor(Math.random() * 40000) + 10000;
-    item.createdAt = new Date().toUTCString();
-    setLogs([...logs, item]);
+    ipcRenderer.send("logs:add", { id: uuid(), ...item });
+
     showAlert("Log Added!");
   };
 
   const removeLog = (id) => {
-    setLogs(logs.filter((log) => log.id !== id));
+    console.log("removeItem:ID::: ", id);
+
+    ipcRenderer.send("logs:remove", id);
+
     showAlert(`Removed: ${id}`);
   };
 
